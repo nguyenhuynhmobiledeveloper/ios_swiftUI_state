@@ -8,17 +8,38 @@
 import SwiftUI
 
 struct ContentView: View {
+    @AppStorage("theme") private var theme: Theme = .system
+
     var body: some View {
-        VStack {
-            Image(systemName: "globe")
-                .imageScale(.large)
-                .foregroundStyle(.tint)
-            Text("Hello, world!")
+        TabView {
+            TodoListView()
+                .tabItem {
+                    Label("Công việc", systemImage: "checklist")
+                }
+
+            CategoriesView()
+                .tabItem {
+                    Label("Danh mục", systemImage: "folder")
+                }
+
+            SettingsView()
+                .tabItem {
+                    Label("Cài đặt", systemImage: "gearshape")
+                }
         }
-        .padding()
+        .preferredColorScheme(colorScheme)
+    }
+
+    private var colorScheme: ColorScheme? {
+        switch theme {
+        case .light: return .light
+        case .dark: return .dark
+        case .system: return nil
+        }
     }
 }
 
 #Preview {
     ContentView()
+        .environmentObject(AppState())
 }
