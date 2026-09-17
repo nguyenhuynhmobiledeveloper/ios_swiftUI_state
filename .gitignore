@@ -1,0 +1,74 @@
+/.derivedData/
+
+# macOS
+.DS_Store
+
+# Kết quả build của Xcode (sinh lại được, không cần đưa lên git)
+build/
+build-device/
+DerivedData/
+dd/
+ddsim/
+*.xcuserstate
+xcuserdata/
+# project.yml
+
+# Figma images
+figma-images/
+
+# Agent customizations
+.agents/
+MyAgent/.agents/
+.superpowers/
+
+# Specify templates
+.specify/
+MyAgent/.specify/
+
+# CodeGraph database
+.codegraph/
+
+# Markdown and Shell files
+**/*.md
+!README.md
+!HUONG_DAN_HO_TRO_IOS13.md
+**/*.sh
+!scripts/build_xcframework.sh
+
+# Chứng chỉ ký và provisioning profile — danh tính ký app, KHÔNG được đưa lên
+# repo công khai (đã từng lộ; muốn sạch hẳn phải thu hồi và tạo chứng chỉ mới)
+*.p12
+*.mobileprovision
+*.p8
+*.cer
+*.certSigningRequest
+
+# Xcode Build Products
+*.ipa
+*.dSYM.zip
+XCFrameworks/*.xcframework/
+
+# Fastlane outputs
+fastlane/README.md
+fastlane/report.xml
+fastlane/Preview.html
+fastlane/screenshots/
+fastlane/test_output/
+
+dddev/
+
+# Node / npm
+node_modules/
+package-lock.json
+package.json
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+
+# *.md
+# **/*.md
+# .md
+
+
+*.codex-derived/
