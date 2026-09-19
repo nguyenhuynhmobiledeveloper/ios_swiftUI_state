@@ -1,4 +1,5 @@
 /.derivedData/
+/buildServer.json
 
 # macOS
 .DS_Store
@@ -31,6 +32,7 @@ MyAgent/.specify/
 # Markdown and Shell files
 **/*.md
 !README.md
+!HUONG_DAN_HO_TRO_IOS13.md
 **/*.sh
 !scripts/build_xcframework.sh
 
@@ -65,10 +67,9 @@ yarn-debug.log*
 yarn-error.log*
 
 
-*.md
-
-**/*.md
-.md
+# *.md
+# **/*.md
+# .md
 
 
 *.codex-derived/

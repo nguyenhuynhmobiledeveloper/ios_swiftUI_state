@@ -15,8 +15,8 @@ struct AddEditTodoView: View {
         case edit(TodoItem)
     }
     
-    // ENVIRONMENT: Truy cập dismiss để đóng sheet
-    @Environment(\.dismiss) var dismiss
+    // ENVIRONMENT: Truy cập presentationMode để đóng sheet (iOS 13 compatible)
+    @Environment(\.presentationMode) var presentationMode
     
     // GLOBAL STATE: Truy cập AppState để thêm/cập nhật todo
     @EnvironmentObject var appState: AppState
@@ -62,19 +62,19 @@ struct AddEditTodoView: View {
         NavigationView {
             Form {
                 // Title section
-                Section("Title") {
+                Section(header: Text("Title")) {
                     TextField("Enter todo title", text: $title)
-                        .textInputAutocapitalization(.sentences)
+                        .autocapitalization(.sentences)
                 }
                 
                 // Description section
-                Section("Description") {
-                    TextEditor(text: $description)
+                Section(header: Text("Description")) {
+                    MultilineTextField(text: $description)
                         .frame(minHeight: 80)
                 }
                 
                 // Priority section
-                Section("Priority") {
+                Section(header: Text("Priority")) {
                     Picker("Priority", selection: $selectedPriority) {
                         ForEach(Priority.allCases) { priority in
                             HStack {
@@ -84,11 +84,11 @@ struct AddEditTodoView: View {
                             .tag(priority)
                         }
                     }
-                    .pickerStyle(.segmented)
+                    .pickerStyle(SegmentedPickerStyle())
                 }
                 
                 // Category section
-                Section("Category") {
+                Section(header: Text("Category")) {
                     ScrollView(.horizontal, showsIndicators: false) {
                         HStack(spacing: 12) {
                             ForEach(appState.categories) { category in
@@ -106,8 +106,8 @@ struct AddEditTodoView: View {
                 }
                 
                 // Due date section
-                Section("Due Date") {
-                    Toggle("Set due date", isOn: $hasDueDate.animation())
+                Section(header: Text("Due Date")) {
+                    Toggle("Set due date", isOn: $hasDueDate)
                     
                     if hasDueDate {
                         DatePicker(
@@ -115,18 +115,16 @@ struct AddEditTodoView: View {
                             selection: $dueDate,
                             displayedComponents: [.date, .hourAndMinute]
                         )
-                        .transition(.opacity.combined(with: .move(edge: .top)))
                     }
                 }
                 
                 // Tags section
-                Section("Tags") {
+                Section(header: Text("Tags")) {
                     HStack {
-                        TextField("Add tag", text: $tagInput)
-                            .textInputAutocapitalization(.never)
-                            .onSubmit {
-                                addTag()
-                            }
+                        TextField("Add tag", text: $tagInput, onCommit: {
+                            addTag()
+                        })
+                        .autocapitalization(.none)
                         
                         Button(action: addTag) {
                             Image(systemName: "plus.circle.fill")
@@ -148,32 +146,29 @@ struct AddEditTodoView: View {
                     }
                 }
             }
-            .navigationTitle(isEditing ? "Edit Todo" : "New Todo")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") {
-                        dismiss()
-                        print("Đã hủy \(isEditing ? "chỉnh sửa" : "thêm") todo") // Log cancel
-                    }
+            .navigationBarTitle(isEditing ? "Edit Todo" : "New Todo", displayMode: .inline)
+            .navigationBarItems(
+                leading: Button("Cancel") {
+                    presentationMode.wrappedValue.dismiss()
+                    print("Đã hủy \(isEditing ? "chỉnh sửa" : "thêm") todo")
+                },
+                trailing: Button("Save") {
+                    saveTodo()
                 }
-                
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("Save") {
-                        saveTodo()
-                    }
-                    .disabled(!isValidInput)
-                }
-            }
-            .alert("Title Required", isPresented: $showValidationError) {
-                Button("OK", role: .cancel) { }
-            } message: {
-                Text("Please enter a title for the todo")
+                .disabled(!isValidInput)
+            )
+            .alert(isPresented: $showValidationError) {
+                Alert(
+                    title: Text("Title Required"),
+                    message: Text("Please enter a title for the todo"),
+                    dismissButton: .cancel(Text("OK"))
+                )
             }
             .onAppear {
                 loadExistingTodo()
             }
         }
+        .navigationViewStyle(StackNavigationViewStyle())
     }
     
     // MARK: - Computed Properties
@@ -261,7 +256,7 @@ struct AddEditTodoView: View {
             print("Đã thêm todo mới: \(trimmedTitle)") // Log add
         }
         
-        dismiss()
+        presentationMode.wrappedValue.dismiss()
     }
 }
 
@@ -277,7 +272,7 @@ struct CategoryButton: View {
         Button(action: action) {
             VStack(spacing: 6) {
                 Image(systemName: category.icon)
-                    .font(.title2)
+                    .font(.system(size: 22))
                 Text(category.name)
                     .font(.caption)
             }
@@ -290,7 +285,7 @@ struct CategoryButton: View {
                     .stroke(category.displayColor, lineWidth: isSelected ? 2 : 0)
             )
         }
-        .buttonStyle(.plain)
+        .buttonStyle(PlainButtonStyle())
     }
 }
 
@@ -306,7 +301,7 @@ struct TagChip: View {
             
             Button(action: onRemove) {
                 Image(systemName: "xmark.circle.fill")
-                    .font(.caption2)
+                    .font(.system(size: 11))
             }
         }
         .padding(.horizontal, 10)
@@ -317,7 +312,9 @@ struct TagChip: View {
     }
 }
 
-#Preview {
-    AddEditTodoView(mode: .add)
-        .environmentObject(AppState())
+struct AddEditTodoView_Previews: PreviewProvider {
+    static var previews: some View {
+        AddEditTodoView(mode: .add)
+            .environmentObject(AppState())
+    }
 }

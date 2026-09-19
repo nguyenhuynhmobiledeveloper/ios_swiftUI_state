@@ -11,8 +11,8 @@ struct TodoListView: View {
     // GLOBAL STATE: Truy cập dữ liệu todos và categories toàn app
     @EnvironmentObject var appState: AppState
     
-    // SCREEN-LEVEL STATE: Quản lý logic và filtering cho màn hình này
-    @StateObject private var viewModel = TodoListViewModel()
+    // Preferences được giữ bởi singleton; dữ liệu todos lấy trực tiếp từ AppState.
+    @ObservedObject private var preferences = UserPreferencesManager.shared
     
     // LOCAL STATE: Điều khiển hiển thị sheet thêm todo
     @State private var isAddingNewTodo: Bool = false
@@ -37,23 +37,12 @@ struct TodoListView: View {
     
     // LOCAL STATE: Hiển thị alert xác nhận xóa nhiều
     @State private var showBulkDeleteAlert: Bool = false
-    
-    // PERSISTENT STATE: Thứ tự sắp xếp được lưu trữ
-    @AppStorage("sortOrder") var sortOrder: SortOrder = .date
-    
-    // PERSISTENT STATE: Hiển thị tasks đã hoàn thành
-    @AppStorage("showCompleted") var showCompleted: Bool = true
+    @State private var showActionSheet: Bool = false
     
     var body: some View {
         NavigationView {
             ZStack {
-                if viewModel.isLoading {
-                    loadingView
-                } else if filteredAndSortedTodos.isEmpty {
-                    emptyStateView
-                } else {
-                    todoListContent
-                }
+                todoListContent
                 
                 // Floating action button
                 VStack {
@@ -66,8 +55,7 @@ struct TodoListView: View {
                             print("Mở sheet thêm todo mới") // In ra hành động mở sheet
                         } label: {
                             Image(systemName: "plus")
-                                .font(.title2)
-                                .fontWeight(.semibold)
+                                .font(.system(size: 22, weight: .semibold))
                                 .foregroundColor(.white)
                                 .frame(width: 60, height: 60)
                                 .background(Color.accentColor)
@@ -78,42 +66,56 @@ struct TodoListView: View {
                     }
                 }
             }
-            .navigationTitle("Công việc")
-            .toolbar {
-                toolbarContent
-            }
-            .searchable(text: $searchText, prompt: "Tìm kiếm công việc...")
+            .navigationBarTitle("Công việc", displayMode: .large)
+            .navigationBarItems(
+                leading: editModeButton,
+                trailing: settingsButton
+            )
             .sheet(isPresented: $isAddingNewTodo) {
                 AddEditTodoView(mode: .add)
                     .environmentObject(appState)
             }
-            .sheet(item: $selectedTodo) { todo in
+            .alert(isPresented: $showBulkDeleteAlert) {
+                Alert(
+                    title: Text("Xóa \(selectedTodoIds.count) công việc"),
+                    message: Text("Bạn có chắc muốn xóa \(selectedTodoIds.count) công việc đã chọn?"),
+                    primaryButton: .cancel(Text("Hủy")) {
+                        print("Hủy xóa nhiều todos")
+                    },
+                    secondaryButton: .destructive(Text("Xóa")) {
+                        bulkDeleteTodos()
+                    }
+                )
+            }
+            .actionSheet(isPresented: $showActionSheet) {
+                ActionSheet(
+                    title: Text("Tùy chọn"),
+                    buttons: [
+                        .default(Text("Sắp xếp theo ngày")) {
+                            preferences.sortOrder = .date
+                        },
+                        .default(Text("Sắp xếp theo ưu tiên")) {
+                            preferences.sortOrder = .priority
+                        },
+                        .default(Text("Sắp xếp theo tên A-Z")) {
+                            preferences.sortOrder = .alphabetical
+                        },
+                        .default(Text(preferences.showCompleted ? "Ẩn đã hoàn thành" : "Hiện đã hoàn thành")) {
+                            preferences.showCompleted.toggle()
+                        },
+                        .cancel(Text("Hủy"))
+                    ]
+                )
+            }
+
+        }
+        .navigationViewStyle(StackNavigationViewStyle())
+        .sheet(item: $selectedTodo) { todo in
+            NavigationView {
                 TodoDetailView(todo: todo)
                     .environmentObject(appState)
             }
-            .alert("Xóa \(selectedTodoIds.count) công việc", isPresented: $showBulkDeleteAlert) {
-                Button("Hủy", role: .cancel) {
-                    print("Hủy xóa nhiều todos") // In ra hành động hủy
-                }
-                Button("Xóa", role: .destructive) {
-                    bulkDeleteTodos()
-                }
-            } message: {
-                Text("Bạn có chắc muốn xóa \(selectedTodoIds.count) công việc đã chọn?")
-            }
-            .onAppear {
-                // Kết nối ViewModel với AppState khi view xuất hiện
-                viewModel.connectToAppState(appState)
-                print("TodoListView xuất hiện, kết nối với AppState") // In ra lifecycle event
-            }
-            .onChange(of: searchText) { oldValue, newValue in
-                // Tìm kiếm theo text nhập vào
-                print("Text tìm kiếm thay đổi: '\(newValue)'") // In ra text tìm kiếm
-            }
-            .onChange(of: selectedFilter) { oldValue, newValue in
-                // Filter thay đổi
-                print("Filter thay đổi: \(newValue.rawValue)") // In ra filter mới
-            }
+            .navigationViewStyle(StackNavigationViewStyle())
         }
     }
     
@@ -124,7 +126,7 @@ struct TodoListView: View {
         var todos = appState.allTodos
         
         // Filter theo trạng thái completed
-        if !showCompleted {
+        if !preferences.showCompleted {
             todos = todos.filter { !$0.isCompleted }
             print("Đã lọc bỏ todos đã hoàn thành: \(todos.count) todos còn lại") // In ra kết quả filter
         }
@@ -150,7 +152,7 @@ struct TodoListView: View {
         }
         
         // Sort theo thứ tự đã chọn
-        switch sortOrder {
+        switch preferences.sortOrder {
         case .date:
             todos.sort { $0.createdAt > $1.createdAt }
         case .priority:
@@ -164,17 +166,6 @@ struct TodoListView: View {
     
     // MARK: - Subviews
     
-    // View hiển thị khi đang loading
-    private var loadingView: some View {
-        VStack {
-            ProgressView()
-                .scaleEffect(1.5)
-            Text("Đang tải...")
-                .foregroundColor(.secondary)
-                .padding(.top)
-        }
-    }
-    
     // View hiển thị khi không có todo nào
     private var emptyStateView: some View {
         VStack(spacing: 20) {
@@ -183,7 +174,7 @@ struct TodoListView: View {
                 .foregroundColor(.gray.opacity(0.5))
             
             Text("Chưa có công việc nào")
-                .font(.title2)
+                .font(.system(size: 22))
                 .fontWeight(.semibold)
             
             if !searchText.isEmpty {
@@ -201,6 +192,9 @@ struct TodoListView: View {
     // Nội dung chính - danh sách todos
     private var todoListContent: some View {
         VStack(spacing: 0) {
+            // Search bar
+            SearchBar(text: $searchText, placeholder: "Tìm kiếm công việc...")
+            
             // Filter buttons
             filterBar
             
@@ -208,6 +202,10 @@ struct TodoListView: View {
             statisticsCard
             
             // List todos
+            if filteredAndSortedTodos.isEmpty {
+                emptyStateView
+                Spacer()
+            }
             List {
                 ForEach(filteredAndSortedTodos) { todo in
                     TodoRowView(
@@ -217,6 +215,17 @@ struct TodoListView: View {
                         onToggle: { toggleComplete(todo) },
                         onDelete: { deleteTodo(todo) }
                     )
+                    .contextMenu {
+                        Button(action: { toggleComplete(todo) }) {
+                            HStack {
+                                Image(systemName: todo.isCompleted ? "arrow.uturn.backward" : "checkmark")
+                                Text(todo.isCompleted ? "Đánh dấu chưa xong" : "Đánh dấu hoàn thành")
+                            }
+                        }
+                        Button(action: { deleteTodo(todo) }) {
+                            HStack { Image(systemName: "trash"); Text("Xóa") }
+                        }
+                    }
                     .onTapGesture {
                         if isEditMode {
                             // LOCAL STATE: Toggle selection trong edit mode
@@ -228,27 +237,13 @@ struct TodoListView: View {
                             print("Mở chi tiết todo: \(todo.title)") // In ra todo được xem
                         }
                     }
-                    .swipeActions(edge: .trailing, allowsFullSwipe: true) {
-                        Button(role: .destructive) {
-                            deleteTodo(todo)
-                        } label: {
-                            Label("Xóa", systemImage: "trash")
-                        }
-                    }
-                    .swipeActions(edge: .leading) {
-                        Button {
-                            toggleComplete(todo)
-                        } label: {
-                            Label(
-                                todo.isCompleted ? "Chưa xong" : "Hoàn thành",
-                                systemImage: todo.isCompleted ? "arrow.uturn.backward" : "checkmark"
-                            )
-                        }
-                        .tint(todo.isCompleted ? .orange : .green)
-                    }
+                }
+                .onDelete { indexSet in
+                    let todosToDelete = indexSet.map { filteredAndSortedTodos[$0] }
+                    todosToDelete.forEach(deleteTodo)
                 }
             }
-            .listStyle(.plain)
+            .listStyle(PlainListStyle())
         }
     }
     
@@ -308,70 +303,28 @@ struct TodoListView: View {
     }
     
     // Toolbar content
-    @ToolbarContentBuilder
-    private var toolbarContent: some ToolbarContent {
-        ToolbarItem(placement: .navigationBarLeading) {
+    private var editModeButton: some View {
+        Group {
             if isEditMode {
                 Button("Hủy") {
-                    // LOCAL STATE: Thoát edit mode
                     isEditMode = false
                     selectedTodoIds.removeAll()
-                    print("Thoát edit mode") // In ra hành động thoát
+                    print("Thoát edit mode")
                 }
             } else {
-                Button {
-                    // LOCAL STATE: Vào edit mode
+                Button("Chọn") {
                     isEditMode = true
-                    print("Vào edit mode") // In ra hành động vào edit mode
-                } label: {
-                    Text("Chọn")
+                    print("Vào edit mode")
                 }
             }
         }
-        
-        ToolbarItem(placement: .navigationBarTrailing) {
-            Menu {
-                Picker("Sắp xếp", selection: $sortOrder) {
-                    ForEach(SortOrder.allCases, id: \.self) { order in
-                        Label(order.displayName, systemImage: order.icon)
-                            .tag(order)
-                    }
-                }
-                .onChange(of: sortOrder) { oldValue, newValue in
-                    print("Thay đổi sort order: \(newValue.rawValue)") // In ra sort order mới
-                }
-                
-                Divider()
-                
-                Toggle("Hiện đã hoàn thành", isOn: $showCompleted)
-                    .onChange(of: showCompleted) { oldValue, newValue in
-                        print("Toggle hiện completed: \(newValue)") // In ra trạng thái toggle
-                    }
-            } label: {
-                Image(systemName: "ellipsis.circle")
-            }
-        }
-        
-        if isEditMode && !selectedTodoIds.isEmpty {
-            ToolbarItem(placement: .bottomBar) {
-                HStack {
-                    Button(role: .destructive) {
-                        // LOCAL STATE: Hiển thị alert xóa nhiều
-                        showBulkDeleteAlert = true
-                        print("Chuẩn bị xóa \(selectedTodoIds.count) todos") // In ra số lượng sẽ xóa
-                    } label: {
-                        Label("Xóa \(selectedTodoIds.count)", systemImage: "trash")
-                    }
-                    
-                    Spacer()
-                    
-                    Button {
-                        bulkToggleComplete()
-                    } label: {
-                        Label("Đánh dấu hoàn thành", systemImage: "checkmark.circle")
-                    }
-                }
-            }
+    }
+    
+    private var settingsButton: some View {
+        Button(action: {
+            showActionSheet = true
+        }) {
+            Image(systemName: "ellipsis.circle")
         }
     }
     
@@ -454,7 +407,9 @@ enum TodoFilter: String, CaseIterable {
     }
 }
 
-#Preview {
-    TodoListView()
-        .environmentObject(AppState())
+struct TodoListView_Previews: PreviewProvider {
+    static var previews: some View {
+        TodoListView()
+            .environmentObject(AppState())
+    }
 }

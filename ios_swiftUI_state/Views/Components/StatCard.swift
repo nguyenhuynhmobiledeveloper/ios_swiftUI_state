@@ -19,7 +19,7 @@ struct StatCard: View {
         VStack(alignment: .leading, spacing: 8) {
             HStack {
                 Image(systemName: icon)
-                    .font(.title2)
+                    .font(.system(size: 22))
                     .foregroundColor(color)
                 
                 Spacer()
@@ -41,28 +41,30 @@ struct StatCard: View {
     }
 }
 
-#Preview {
-    VStack(spacing: 16) {
-        StatCard(
-            title: "Total Tasks",
-            value: "24",
-            icon: "list.bullet",
-            color: .blue
-        )
+struct StatCard_Previews: PreviewProvider {
+    static var previews: some View {
+        VStack(spacing: 16) {
+            StatCard(
+                title: "Total Tasks",
+                value: "24",
+                icon: "list.bullet",
+                color: .blue
+            )
         
-        StatCard(
-            title: "Completed",
-            value: "18",
-            icon: "checkmark.circle.fill",
-            color: .green
-        )
+            StatCard(
+                title: "Completed",
+                value: "18",
+                icon: "checkmark.circle.fill",
+                color: .green
+            )
         
-        StatCard(
-            title: "Pending",
-            value: "6",
-            icon: "clock.fill",
-            color: .orange
-        )
+            StatCard(
+                title: "Pending",
+                value: "6",
+                icon: "clock.fill",
+                color: .orange
+            )
+        }
+        .padding()
     }
-    .padding()
 }

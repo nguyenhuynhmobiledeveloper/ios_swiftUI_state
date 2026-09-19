@@ -32,9 +32,6 @@ struct CategoriesView: View {
     // LOCAL STATE: Category chuẩn bị xóa
     @State private var categoryToDelete: Category?
     
-    let columns = [
-        GridItem(.adaptive(minimum: 150), spacing: 16)
-    ]
     
     let availableIcons = ["folder", "star", "heart", "bookmark", "flag", "house", "cart", "bag", "tag", "paperplane"]
     let availableColorNames = ["blue", "green", "red", "orange", "purple", "pink", "yellow", "indigo"]
@@ -49,67 +46,83 @@ struct CategoriesView: View {
                 if appState.categories.isEmpty {
                     emptyStateView
                 } else {
-                    ScrollView {
-                        LazyVGrid(columns: columns, spacing: 16) {
-                            ForEach(appState.categories) { category in
-                                Button {
-                                    print("Đã chọn category: \(category.name)")
-                                } label: {
-                                    CategoryCard(
-                                        category: category,
-                                        todoCount: appState.todosByCategory(categoryId: category.id).count,
-                                        isSelected: false
-                                    )
-                                }
-                                .buttonStyle(.plain)
-                                .contextMenu {
-                                    Button("Xóa", systemImage: "trash", role: .destructive) {
-                                        // Chuẩn bị xóa category
-                                        categoryToDelete = category
-                                        showDeleteAlert = true
-                                    }
-                                }
-                            }
+                    GeometryReader { geometry in
+                        ScrollView {
+                            categoryGrid(width: geometry.size.width)
+                                .padding()
                         }
-                        .padding()
                     }
                 }
             }
-            .navigationTitle("Danh mục")
-            .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button {
-                        // LOCAL STATE: Hiển thị sheet thêm category
-                        showAddCategory = true
-                        print("Mở sheet thêm category mới") // In ra trạng thái mở sheet
-                    } label: {
-                        Image(systemName: "plus.circle.fill")
-                            .font(.title2)
-                    }
+            .navigationBarTitle("Danh mục")
+            .navigationBarItems(
+                trailing: Button(action: {
+                    showAddCategory = true
+                    print("Mở sheet thêm category mới")
+                }) {
+                    Image(systemName: "plus.circle.fill")
+                        .font(.system(size: 22))
                 }
-            }
+            )
             .sheet(isPresented: $showAddCategory) {
                 addCategorySheet
             }
-            .alert("Xóa danh mục", isPresented: $showDeleteAlert) {
-                Button("Hủy", role: .cancel) {
-                    print("Hủy xóa category") // In ra hành động hủy
-                }
-                Button("Xóa", role: .destructive) {
-                    if let category = categoryToDelete {
-                        // GLOBAL STATE: Xóa category khỏi app state
-                        appState.deleteCategory(id: category.id)
-                        print("Đã xóa category: \(category.name)") // In ra category đã xóa
+            .alert(isPresented: $showDeleteAlert) {
+                Alert(
+                    title: Text("Xóa danh mục"),
+                    message: categoryToDelete.map { Text("Bạn có chắc muốn xóa danh mục '\($0.name)'?") },
+                    primaryButton: .cancel(Text("Hủy")) {
+                        print("Hủy xóa category")
+                    },
+                    secondaryButton: .destructive(Text("Xóa")) {
+                        if let category = categoryToDelete {
+                            appState.deleteCategory(id: category.id)
+                            print("Đã xóa category: \(category.name)")
+                        }
                     }
-                }
-            } message: {
-                if let category = categoryToDelete {
-                    Text("Bạn có chắc muốn xóa danh mục '\(category.name)'?")
+                )
+            }
+        }
+        .navigationViewStyle(StackNavigationViewStyle())
+    }
+    
+    private func categoryGrid(width: CGFloat) -> some View {
+        let columnCount = max(1, Int((width - 32 + 16) / 166))
+        let rowCount = (appState.categories.count + columnCount - 1) / columnCount
+        return VStack(spacing: 16) {
+            ForEach(0..<rowCount, id: \.self) { row in
+                HStack(spacing: 16) {
+                    ForEach(0..<columnCount, id: \.self) { column in
+                        self.categoryCell(at: row * columnCount + column)
+                            .frame(maxWidth: .infinity)
+                    }
                 }
             }
         }
     }
-    
+
+    @ViewBuilder
+    private func categoryCell(at index: Int) -> some View {
+        if index < appState.categories.count {
+            let category = appState.categories[index]
+            CategoryCard(
+                category: category,
+                todoCount: appState.todosByCategory(categoryId: category.id).count,
+                isSelected: false
+            )
+            .contextMenu {
+                Button(action: {
+                    categoryToDelete = category
+                    showDeleteAlert = true
+                }) {
+                    HStack { Image(systemName: "trash"); Text("Xóa") }
+                }
+            }
+        } else {
+            Color.clear
+        }
+    }
+
     // View hiển thị khi chưa có category nào
     private var emptyStateView: some View {
         VStack(spacing: 20) {
@@ -118,7 +131,7 @@ struct CategoriesView: View {
                 .foregroundColor(.gray.opacity(0.5))
             
             Text("Chưa có danh mục nào")
-                .font(.title2)
+                .font(.system(size: 22))
                 .fontWeight(.semibold)
             
             Text("Nhấn nút + để tạo danh mục đầu tiên")
@@ -129,7 +142,7 @@ struct CategoriesView: View {
                 showAddCategory = true
                 print("Mở sheet từ empty state") // In ra nguồn mở sheet
             } label: {
-                Label("Thêm danh mục", systemImage: "plus.circle.fill")
+                HStack { Image(systemName: "plus.circle.fill"); Text("Thêm danh mục") }
                     .font(.headline)
                     .padding(.horizontal, 24)
                     .padding(.vertical, 12)
@@ -144,12 +157,12 @@ struct CategoriesView: View {
     private var addCategorySheet: some View {
         NavigationView {
             Form {
-                Section("Thông tin danh mục") {
+                Section(header: Text("Thông tin danh mục")) {
                     TextField("Tên danh mục", text: $newCategoryName)
-                        .textInputAutocapitalization(.words)
+                        .autocapitalization(.words)
                 }
                 
-                Section("Chọn biểu tượng") {
+                Section(header: Text("Chọn biểu tượng")) {
                     ScrollView(.horizontal, showsIndicators: false) {
                         HStack(spacing: 16) {
                             ForEach(availableIcons, id: \.self) { icon in
@@ -168,14 +181,14 @@ struct CategoriesView: View {
                                                 .stroke(selectedIcon == icon ? Color.accentColor : Color.clear, lineWidth: 2)
                                         )
                                 }
-                                .buttonStyle(.plain)
+                                .buttonStyle(PlainButtonStyle())
                             }
                         }
                         .padding(.vertical, 8)
                     }
                 }
                 
-                Section("Chọn màu sắc") {
+                Section(header: Text("Chọn màu sắc")) {
                     ScrollView(.horizontal, showsIndicators: false) {
                         HStack(spacing: 16) {
                             ForEach(availableColorNames, id: \.self) { colorName in
@@ -199,11 +212,11 @@ struct CategoriesView: View {
                     }
                 }
                 
-                Section {
+                Section(header: Text("Xem trước")) {
                     // Preview category mới
                     HStack {
                         Image(systemName: selectedIcon)
-                            .font(.title2)
+                            .font(.system(size: 22))
                             .foregroundColor(selectedColor)
                             .frame(width: 40, height: 40)
                             .background(selectedColor.opacity(0.2))
@@ -215,40 +228,29 @@ struct CategoriesView: View {
                         Spacer()
                     }
                     .padding(.vertical, 8)
-                } header: {
-                    Text("Xem trước")
                 }
             }
-            .navigationTitle("Thêm danh mục")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("Hủy") {
-                        // LOCAL STATE: Đóng sheet và reset
-                        showAddCategory = false
-                        resetForm()
-                        print("Hủy thêm category và reset form") // In ra hành động hủy
-                    }
+            .navigationBarTitle("Thêm danh mục", displayMode: .inline)
+            .navigationBarItems(
+                leading: Button("Hủy") {
+                    showAddCategory = false
+                    resetForm()
+                    print("Hủy thêm category và reset form")
+                },
+                trailing: Button("Lưu") {
+                    let newCategory = Category(
+                        name: newCategoryName,
+                        color: selectedColorName,
+                        icon: selectedIcon
+                    )
+                    appState.addCategory(newCategory)
+                    print("Đã tạo category mới: \(newCategory.name) với icon \(newCategory.icon)")
+                    
+                    showAddCategory = false
+                    resetForm()
                 }
-                
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("Lưu") {
-                        // GLOBAL STATE: Thêm category mới vào app state
-                        let newCategory = Category(
-                            name: newCategoryName,
-                            color: selectedColorName,
-                            icon: selectedIcon
-                        )
-                        appState.addCategory(newCategory)
-                        print("Đã tạo category mới: \(newCategory.name) với icon \(newCategory.icon)") // In ra category đã tạo
-                        
-                        // LOCAL STATE: Đóng sheet và reset
-                        showAddCategory = false
-                        resetForm()
-                    }
-                    .disabled(newCategoryName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-                }
-            }
+                .disabled(newCategoryName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+            )
         }
     }
     
@@ -262,7 +264,9 @@ struct CategoriesView: View {
     }
 }
 
-#Preview {
-    CategoriesView()
-        .environmentObject(AppState())
+struct CategoriesView_Previews: PreviewProvider {
+    static var previews: some View {
+        CategoriesView()
+            .environmentObject(AppState())
+    }
 }

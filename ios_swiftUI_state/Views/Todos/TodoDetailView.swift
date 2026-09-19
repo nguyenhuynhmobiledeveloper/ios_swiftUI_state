@@ -9,46 +9,62 @@ import SwiftUI
 
 // VIEW: Màn hình hiển thị chi tiết một todo
 struct TodoDetailView: View {
-    // ENVIRONMENT: Truy cập dismiss để đóng view
-    @Environment(\.dismiss) var dismiss
+    // ENVIRONMENT: Truy cập presentationMode để đóng view (iOS 13 compatible)
+    @Environment(\.presentationMode) var presentationMode
     
     // GLOBAL STATE: Truy cập AppState để update và delete todo
     @EnvironmentObject var appState: AppState
     
-    // SCREEN-LEVEL STATE: ViewModel quản lý logic cho màn hình này
-    @StateObject private var viewModel: TodoDetailViewModel
+    // Đọc dữ liệu mới nhất từ AppState để chi tiết cập nhật sau khi chỉnh sửa.
+    private let initialTodo: TodoItem
+
+    private var todo: TodoItem {
+        appState.allTodos.first(where: { $0.id == initialTodo.id }) ?? initialTodo
+    }
     
     // LOCAL STATE: Quản lý hiển thị các sheets và alerts
     @State private var showEditSheet: Bool = false
     @State private var showDeleteConfirmation: Bool = false
     
     init(todo: TodoItem) {
-        _viewModel = StateObject(wrappedValue: TodoDetailViewModel(todo: todo))
+        self.initialTodo = todo
     }
     
+    private static let dateFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.dateStyle = .medium
+        return formatter
+    }()
+
+    private static let timeFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.timeStyle = .short
+        return formatter
+    }()
+
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 24) {
                 // Header section
                 VStack(alignment: .leading, spacing: 12) {
                     // Title
-                    Text(viewModel.todo.title)
+                    Text(todo.title)
                         .font(.title)
                         .fontWeight(.bold)
-                        .strikethrough(viewModel.todo.isCompleted)
+                        .strikethrough(todo.isCompleted)
                     
                     // Completion status
                     Button(action: {
                         withAnimation {
-                            viewModel.toggleCompletion()
+                            appState.toggleTodoCompletion(id: todo.id)
                         }
                     }) {
                         HStack {
-                            Image(systemName: viewModel.todo.isCompleted ? "checkmark.circle.fill" : "circle")
-                            Text(viewModel.todo.isCompleted ? "Completed" : "Mark as Complete")
+                            Image(systemName: todo.isCompleted ? "checkmark.circle.fill" : "circle")
+                            Text(todo.isCompleted ? "Completed" : "Mark as Complete")
                         }
                         .font(.headline)
-                        .foregroundColor(viewModel.todo.isCompleted ? .green : .blue)
+                        .foregroundColor(todo.isCompleted ? .green : .blue)
                     }
                 }
                 .padding()
@@ -57,12 +73,12 @@ struct TodoDetailView: View {
                 .cornerRadius(12)
                 
                 // Description section
-                if !viewModel.todo.description.isEmpty {
+                if !todo.description.isEmpty {
                     VStack(alignment: .leading, spacing: 8) {
-                        Label("Description", systemImage: "text.alignleft")
+                        HStack { Image(systemName: "text.alignleft"); Text("Description") }
                             .font(.headline)
                         
-                        Text(viewModel.todo.description)
+                        Text(todo.description)
                             .font(.body)
                             .foregroundColor(.secondary)
                     }
@@ -74,7 +90,7 @@ struct TodoDetailView: View {
                 
                 // Details section
                 VStack(alignment: .leading, spacing: 16) {
-                    Label("Details", systemImage: "info.circle")
+                    HStack { Image(systemName: "info.circle"); Text("Details") }
                         .font(.headline)
                     
                     // Priority
@@ -83,7 +99,7 @@ struct TodoDetailView: View {
                             .font(.subheadline)
                             .foregroundColor(.secondary)
                         Spacer()
-                        PriorityBadge(priority: viewModel.todo.priority)
+                        PriorityBadge(priority: todo.priority)
                     }
                     
                     Divider()
@@ -94,7 +110,7 @@ struct TodoDetailView: View {
                             .font(.subheadline)
                             .foregroundColor(.secondary)
                         Spacer()
-                        if let categoryId = viewModel.todo.categoryId,
+                        if let categoryId = todo.categoryId,
                            let category = appState.getCategory(id: categoryId) {
                             CategoryBadge(category: category)
                         } else {
@@ -112,13 +128,13 @@ struct TodoDetailView: View {
                             .font(.subheadline)
                             .foregroundColor(.secondary)
                         Spacer()
-                        if let dueDate = viewModel.todo.dueDate {
+                        if let dueDate = todo.dueDate {
                             VStack(alignment: .trailing) {
-                                Text(dueDate, style: .date)
-                                Text(dueDate, style: .time)
+                                Text(Self.dateFormatter.string(from: dueDate))
+                                Text(Self.timeFormatter.string(from: dueDate))
                             }
                             .font(.subheadline)
-                            .foregroundColor(viewModel.todo.isOverdue ? .red : .primary)
+                            .foregroundColor(todo.isOverdue ? .red : .primary)
                         } else {
                             Text("Not set")
                                 .font(.subheadline)
@@ -134,7 +150,7 @@ struct TodoDetailView: View {
                             .font(.subheadline)
                             .foregroundColor(.secondary)
                         Spacer()
-                        Text(viewModel.todo.createdAt, style: .date)
+                        Text(Self.dateFormatter.string(from: todo.createdAt))
                             .font(.subheadline)
                     }
                 }
@@ -143,13 +159,14 @@ struct TodoDetailView: View {
                 .cornerRadius(12)
                 
                 // Tags section
-                if !viewModel.todo.tags.isEmpty {
+                if !todo.tags.isEmpty {
                     VStack(alignment: .leading, spacing: 12) {
-                        Label("Tags", systemImage: "tag")
+                        HStack { Image(systemName: "tag"); Text("Tags") }
                             .font(.headline)
                         
-                        FlowLayout(spacing: 8) {
-                            ForEach(viewModel.todo.tags, id: \.self) { tag in
+                        // Simple wrapping layout for iOS 13
+                        VStack(alignment: .leading, spacing: 8) {
+                            ForEach(todo.tags, id: \.self) { tag in
                                 Text("#\(tag)")
                                     .font(.caption)
                                     .padding(.horizontal, 12)
@@ -169,9 +186,9 @@ struct TodoDetailView: View {
                 VStack(spacing: 12) {
                     Button(action: {
                         showEditSheet = true
-                        print("Mở sheet chỉnh sửa todo: \(viewModel.todo.title)") // Log edit
+                        print("Mở sheet chỉnh sửa todo: \(todo.title)") // Log edit
                     }) {
-                        Label("Edit Todo", systemImage: "pencil")
+                        HStack { Image(systemName: "pencil"); Text("Edit Todo") }
                             .frame(maxWidth: .infinity)
                             .padding()
                             .background(Color.blue)
@@ -183,7 +200,7 @@ struct TodoDetailView: View {
                         showDeleteConfirmation = true
                         print("Hiển thị xác nhận xóa todo") // Log delete confirmation
                     }) {
-                        Label("Delete Todo", systemImage: "trash")
+                        HStack { Image(systemName: "trash"); Text("Delete Todo") }
                             .frame(maxWidth: .infinity)
                             .padding()
                             .background(Color.red.opacity(0.1))
@@ -194,81 +211,31 @@ struct TodoDetailView: View {
             }
             .padding()
         }
-        .navigationTitle("Todo Details")
-        .navigationBarTitleDisplayMode(.inline)
+        .navigationBarTitle("Todo Details", displayMode: .inline)
         .sheet(isPresented: $showEditSheet) {
-            AddEditTodoView(existingTodo: viewModel.todo)
+            AddEditTodoView(existingTodo: todo)
+                .environmentObject(appState)
         }
-        .alert("Delete Todo", isPresented: $showDeleteConfirmation) {
-            Button("Cancel", role: .cancel) { }
-            Button("Delete", role: .destructive) {
-                viewModel.deleteTodo()
-                dismiss()
-                print("Đã xóa todo và đóng detail view") // Log delete
-            }
-        } message: {
-            Text("Are you sure you want to delete this todo? This action cannot be undone.")
-        }
-        .onAppear {
-            viewModel.setup(appState: appState)
-        }
-    }
-}
-
-// MARK: - Flow Layout Helper
-
-// Custom layout để hiển thị tags theo dạng flow
-struct FlowLayout: Layout {
-    var spacing: CGFloat = 8
-    
-    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
-        let result = FlowResult(in: proposal.replacingUnspecifiedDimensions().width, subviews: subviews, spacing: spacing)
-        return result.size
-    }
-    
-    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
-        let result = FlowResult(in: bounds.width, subviews: subviews, spacing: spacing)
-        for (index, subview) in subviews.enumerated() {
-            subview.place(at: CGPoint(x: bounds.minX + result.positions[index].x, y: bounds.minY + result.positions[index].y), proposal: .unspecified)
-        }
-    }
-    
-    struct FlowResult {
-        var size: CGSize
-        var positions: [CGPoint]
-        
-        init(in maxWidth: CGFloat, subviews: Subviews, spacing: CGFloat) {
-            var positions: [CGPoint] = []
-            var size: CGSize = .zero
-            var currentX: CGFloat = 0
-            var currentY: CGFloat = 0
-            var lineHeight: CGFloat = 0
-            
-            for subview in subviews {
-                let subviewSize = subview.sizeThatFits(.unspecified)
-                
-                if currentX + subviewSize.width > maxWidth && currentX > 0 {
-                    currentX = 0
-                    currentY += lineHeight + spacing
-                    lineHeight = 0
+        .alert(isPresented: $showDeleteConfirmation) {
+            Alert(
+                title: Text("Delete Todo"),
+                message: Text("Are you sure you want to delete this todo? This action cannot be undone."),
+                primaryButton: .cancel(),
+                secondaryButton: .destructive(Text("Delete")) {
+                    appState.deleteTodo(id: todo.id)
+                    presentationMode.wrappedValue.dismiss()
+                    print("Đã xóa todo và đóng detail view")
                 }
-                
-                positions.append(CGPoint(x: currentX, y: currentY))
-                lineHeight = max(lineHeight, subviewSize.height)
-                currentX += subviewSize.width + spacing
-                size.width = max(size.width, currentX - spacing)
-            }
-            
-            size.height = currentY + lineHeight
-            self.size = size
-            self.positions = positions
+            )
         }
     }
 }
 
-#Preview {
-    NavigationView {
-        TodoDetailView(todo: TodoItem.sampleTodos[0])
-            .environmentObject(AppState())
+struct TodoDetailView_Previews: PreviewProvider {
+    static var previews: some View {
+        NavigationView {
+            TodoDetailView(todo: TodoItem.sampleTodos[0])
+                .environmentObject(AppState())
+        }
     }
 }

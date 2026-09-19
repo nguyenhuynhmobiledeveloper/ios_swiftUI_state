@@ -8,30 +8,33 @@
 import SwiftUI
 
 struct ContentView: View {
-    @AppStorage("theme") private var theme: Theme = .system
+    @ObservedObject private var preferences = UserPreferencesManager.shared
 
     var body: some View {
         TabView {
             TodoListView()
                 .tabItem {
-                    Label("Công việc", systemImage: "checklist")
+                    Image(systemName: "list.bullet")
+                    Text("Công việc")
                 }
 
             CategoriesView()
                 .tabItem {
-                    Label("Danh mục", systemImage: "folder")
+                    Image(systemName: "folder")
+                    Text("Danh mục")
                 }
 
             SettingsView()
                 .tabItem {
-                    Label("Cài đặt", systemImage: "gearshape")
+                    Image(systemName: "gear")
+                    Text("Cài đặt")
                 }
         }
         .preferredColorScheme(colorScheme)
     }
 
     private var colorScheme: ColorScheme? {
-        switch theme {
+        switch preferences.theme {
         case .light: return .light
         case .dark: return .dark
         case .system: return nil
@@ -39,7 +42,9 @@ struct ContentView: View {
     }
 }
 
-#Preview {
-    ContentView()
-        .environmentObject(AppState())
+struct ContentView_Previews: PreviewProvider {
+    static var previews: some View {
+        ContentView()
+            .environmentObject(AppState())
+    }
 }

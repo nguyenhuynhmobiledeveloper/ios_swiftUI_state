@@ -22,7 +22,7 @@ struct PriorityBadge: View {
         HStack(spacing: 4) {
             if showIcon {
                 Image(systemName: priority.icon)
-                    .font(.caption2)
+                    .font(.system(size: 11))
             }
             
             Text(priority.rawValue)
@@ -37,12 +37,14 @@ struct PriorityBadge: View {
     }
 }
 
-#Preview {
-    VStack(spacing: 16) {
-        PriorityBadge(priority: .high)
-        PriorityBadge(priority: .medium)
-        PriorityBadge(priority: .low)
-        PriorityBadge(priority: .high, showIcon: false)
+struct PriorityBadge_Previews: PreviewProvider {
+    static var previews: some View {
+        VStack(spacing: 16) {
+            PriorityBadge(priority: .high)
+            PriorityBadge(priority: .medium)
+            PriorityBadge(priority: .low)
+            PriorityBadge(priority: .high, showIcon: false)
+        }
+        .padding()
     }
-    .padding()
 }

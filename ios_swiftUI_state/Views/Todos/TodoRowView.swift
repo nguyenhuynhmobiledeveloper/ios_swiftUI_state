@@ -28,7 +28,7 @@ struct TodoRowView: View {
                 // Selection indicator in edit mode
                 if isEditMode {
                     Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
-                        .font(.title3)
+                        .font(.system(size: 20))
                         .foregroundColor(isSelected ? .blue : .gray)
                 } else {
                     // Checkbox
@@ -39,10 +39,10 @@ struct TodoRowView: View {
                         }
                     }) {
                         Image(systemName: todo.isCompleted ? "checkmark.circle.fill" : "circle")
-                            .font(.title3)
+                            .font(.system(size: 20))
                             .foregroundColor(todo.isCompleted ? .green : .gray)
                     }
-                    .buttonStyle(.plain)
+                    .buttonStyle(PlainButtonStyle())
                 }
                 
                 // Content
@@ -83,7 +83,7 @@ struct TodoRowView: View {
                             HStack(spacing: 6) {
                                 ForEach(todo.tags, id: \.self) { tag in
                                     Text("#\(tag)")
-                                        .font(.caption2)
+                                        .font(.system(size: 11))
                                         .padding(.horizontal, 8)
                                         .padding(.vertical, 4)
                                         .background(Color.blue.opacity(0.1))
@@ -111,17 +111,12 @@ struct TodoRowView: View {
                         .foregroundColor(.gray)
                         .rotationEffect(.degrees(isExpanded ? 90 : 0))
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(PlainButtonStyle())
             }
             .padding(.vertical, 12)
             .padding(.horizontal, 16)
             .background(Color(.systemBackground))
             .contentShape(Rectangle())
-            .onTapGesture {
-                withAnimation(.easeInOut(duration: 0.3)) {
-                    isExpanded.toggle()
-                }
-            }
         }
     }
 }
@@ -153,7 +148,7 @@ struct DueDateBadge: View {
     var body: some View {
         HStack(spacing: 4) {
             Image(systemName: "calendar")
-                .font(.caption2)
+                .font(.system(size: 11))
             Text(dateText)
                 .font(.caption)
         }
@@ -165,16 +160,18 @@ struct DueDateBadge: View {
     }
 }
 
-#Preview {
-    List {
-        ForEach(TodoItem.sampleTodos) { todo in
-            TodoRowView(
-                todo: todo,
-                onToggle: { print("Toggle \(todo.title)") },
-                onDelete: { print("Delete \(todo.title)") }
-            )
+struct TodoRowView_Previews: PreviewProvider {
+    static var previews: some View {
+        List {
+            ForEach(TodoItem.sampleTodos) { todo in
+                TodoRowView(
+                    todo: todo,
+                    onToggle: { print("Toggle \(todo.title)") },
+                    onDelete: { print("Delete \(todo.title)") }
+                )
+            }
         }
+        .listStyle(PlainListStyle())
+        .environmentObject(AppState())
     }
-    .listStyle(.plain)
-    .environmentObject(AppState())
 }

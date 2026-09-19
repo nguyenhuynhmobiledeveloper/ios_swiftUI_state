@@ -22,7 +22,7 @@ struct CategoryBadge: View {
         HStack(spacing: 4) {
             if showIcon {
                 Image(systemName: category.icon)
-                    .font(.caption2)
+                    .font(.system(size: 11))
             }
             
             Text(category.name)
@@ -37,12 +37,14 @@ struct CategoryBadge: View {
     }
 }
 
-#Preview {
-    VStack(spacing: 12) {
-        ForEach(Category.sampleCategories) { category in
-            CategoryBadge(category: category)
+struct CategoryBadge_Previews: PreviewProvider {
+    static var previews: some View {
+        VStack(spacing: 12) {
+            ForEach(Category.sampleCategories) { category in
+                CategoryBadge(category: category)
+            }
+            CategoryBadge(category: Category.sampleCategories[0], showIcon: false)
         }
-        CategoryBadge(category: Category.sampleCategories[0], showIcon: false)
+        .padding()
     }
-    .padding()
 }

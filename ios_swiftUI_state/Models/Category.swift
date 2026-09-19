@@ -39,11 +39,11 @@ struct Category: Identifiable, Codable, Equatable, Hashable {
         case "yellow":
             return .yellow
         case "teal":
-            return .teal
+            return Color(UIColor.systemTeal)
         case "indigo":
-            return .indigo
+            return Color(UIColor.systemIndigo)
         case "cyan":
-            return .cyan
+            return Color(red: 0.2, green: 0.68, blue: 0.9)
         default:
             return .gray
         }

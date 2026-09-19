@@ -19,7 +19,7 @@ struct CategoryCard: View {
             HStack {
                 // Icon của category
                 Image(systemName: category.icon)
-                    .font(.title2)
+                    .font(.system(size: 22))
                     .foregroundColor(.white)
                     .frame(width: 44, height: 44)
                     .background(category.displayColor)
@@ -62,24 +62,26 @@ struct CategoryCard: View {
                 .stroke(isSelected ? category.displayColor : Color.clear, lineWidth: 2)
         )
         .scaleEffect(isSelected ? 1.02 : 1.0)
-        .animation(.spring(response: 0.3, dampingFraction: 0.7), value: isSelected)
+        .animation(.spring(response: 0.3, dampingFraction: 0.7))
     }
 }
 
 // Preview
-#Preview {
-    VStack(spacing: 20) {
-        CategoryCard(
-            category: Category.sampleCategories[0],
-            todoCount: 5,
-            isSelected: false
-        )
+struct CategoryCard_Previews: PreviewProvider {
+    static var previews: some View {
+        VStack(spacing: 20) {
+            CategoryCard(
+                category: Category.sampleCategories[0],
+                todoCount: 5,
+                isSelected: false
+            )
         
-        CategoryCard(
-            category: Category.sampleCategories[1],
-            todoCount: 3,
-            isSelected: true
-        )
+            CategoryCard(
+                category: Category.sampleCategories[1],
+                todoCount: 3,
+                isSelected: true
+            )
+        }
+        .padding()
     }
-    .padding()
 }

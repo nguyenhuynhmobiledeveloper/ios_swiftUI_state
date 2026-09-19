@@ -12,9 +12,6 @@ struct SearchBar: View {
     // BINDING: Kết nối với state của parent view
     @Binding var text: String
     
-    // LOCAL STATE: Quản lý focus state của search field
-    @FocusState private var isFocused: Bool
-    
     var placeholder: String
     var onClear: (() -> Void)?
     
@@ -30,15 +27,13 @@ struct SearchBar: View {
                 .foregroundColor(.gray)
             
             TextField(placeholder, text: $text)
-                .focused($isFocused)
-                .textFieldStyle(.plain)
+                .textFieldStyle(PlainTextFieldStyle())
                 .autocapitalization(.none)
                 .disableAutocorrection(true)
             
             if !text.isEmpty {
                 Button(action: {
                     text = ""
-                    isFocused = false
                     onClear?()
                     print("Đã xóa search text") // Log clear action
                 }) {
@@ -51,15 +46,17 @@ struct SearchBar: View {
         .padding(10)
         .background(Color(.secondarySystemBackground))
         .cornerRadius(10)
-        .animation(.easeInOut(duration: 0.2), value: text.isEmpty)
+        .animation(.easeInOut(duration: 0.2))
     }
 }
 
-#Preview {
-    VStack {
-        SearchBar(text: .constant(""))
-        SearchBar(text: .constant("SwiftUI"))
-        SearchBar(text: .constant("Todo"), placeholder: "Search todos...")
+struct SearchBar_Previews: PreviewProvider {
+    static var previews: some View {
+        VStack {
+            SearchBar(text: .constant(""))
+            SearchBar(text: .constant("SwiftUI"))
+            SearchBar(text: .constant("Todo"), placeholder: "Search todos...")
+        }
+        .padding()
     }
-    .padding()
 }

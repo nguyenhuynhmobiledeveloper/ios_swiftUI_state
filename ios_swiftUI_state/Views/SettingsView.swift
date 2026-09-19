@@ -2,43 +2,59 @@ import SwiftUI
 
 struct SettingsView: View {
     @EnvironmentObject private var appState: AppState
-
-    @AppStorage("theme") private var theme: Theme = .system
-    @AppStorage("sortOrder") private var sortOrder: SortOrder = .date
-    @AppStorage("showCompleted") private var showCompleted = true
-    @AppStorage("notificationsEnabled") private var notificationsEnabled = false
+    @ObservedObject private var preferences = UserPreferencesManager.shared
 
     var body: some View {
-        NavigationStack {
+        NavigationView {
             Form {
-                Section("Thống kê") {
-                    LabeledContent("Tổng công việc", value: "\(appState.statistics.total)")
-                    LabeledContent("Đã hoàn thành", value: "\(appState.statistics.completed)")
-                    LabeledContent("Chưa hoàn thành", value: "\(appState.statistics.pending)")
+                Section(header: Text("Thống kê")) {
+                    HStack {
+                        Text("Tổng công việc")
+                        Spacer()
+                        Text("\(appState.statistics.total)")
+                            .foregroundColor(.secondary)
+                    }
+                    HStack {
+                        Text("Đã hoàn thành")
+                        Spacer()
+                        Text("\(appState.statistics.completed)")
+                            .foregroundColor(.secondary)
+                    }
+                    HStack {
+                        Text("Chưa hoàn thành")
+                        Spacer()
+                        Text("\(appState.statistics.pending)")
+                            .foregroundColor(.secondary)
+                    }
                 }
 
-                Section("Hiển thị") {
-                    Picker("Giao diện", selection: $theme) {
+                Section(header: Text("Hiển thị")) {
+                    Picker("Giao diện", selection: $preferences.theme) {
                         ForEach(Theme.allCases) { item in
                             Text(themeName(item)).tag(item)
                         }
                     }
 
-                    Picker("Sắp xếp mặc định", selection: $sortOrder) {
+                    Picker("Sắp xếp mặc định", selection: $preferences.sortOrder) {
                         ForEach(SortOrder.allCases) { order in
-                            Label(order.displayName, systemImage: order.icon).tag(order)
+                            HStack {
+                                Image(systemName: order.icon)
+                                Text(order.displayName)
+                            }
+                            .tag(order)
                         }
                     }
 
-                    Toggle("Hiện công việc đã hoàn thành", isOn: $showCompleted)
+                    Toggle("Hiện công việc đã hoàn thành", isOn: $preferences.showCompleted)
                 }
 
-                Section("Thông báo") {
-                    Toggle("Bật thông báo", isOn: $notificationsEnabled)
+                Section(header: Text("Thông báo")) {
+                    Toggle("Bật thông báo", isOn: $preferences.notificationsEnabled)
                 }
             }
-            .navigationTitle("Cài đặt")
+            .navigationBarTitle("Cài đặt")
         }
+        .navigationViewStyle(StackNavigationViewStyle())
     }
 
     private func themeName(_ theme: Theme) -> String {
@@ -50,7 +66,9 @@ struct SettingsView: View {
     }
 }
 
-#Preview {
-    SettingsView()
-        .environmentObject(AppState())
+struct SettingsView_Previews: PreviewProvider {
+    static var previews: some View {
+        SettingsView()
+            .environmentObject(AppState())
+    }
 }
